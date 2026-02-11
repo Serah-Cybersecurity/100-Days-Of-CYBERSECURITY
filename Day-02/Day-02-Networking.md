@@ -1,5 +1,6 @@
 # Day 02 – Networking Fundamentals & Packet Analysis
 
+* **Live Traffic Analysis:** * [View Captured ICMP Screenshot](Images/evidence_one_wireshark.JPG)
 ## Overview
 Day 2 transitions from the local system to the network, the primary battleground of cybersecurity. Understanding how data moves, how services are exposed, and how to intercept and analyze traffic is the prerequisite for both offensive security and defensive monitoring.
 This day focused on "visibility"—the ability to see what is happening on the wire and interpret the digital signatures of various protocols.
