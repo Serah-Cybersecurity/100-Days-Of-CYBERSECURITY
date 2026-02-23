@@ -1,11 +1,11 @@
-# 💻 Day 4: Windows Fundamentals & System Hardening
+# Day 4: Windows Fundamentals & System Hardening
 
-## 📖 Overview
+##  Overview
 Today's focus shifted from the Linux command line to the enterprise powerhouse: **Windows Fundamentals**. Understanding the Windows architecture is critical for a SOC Analyst, as the majority of corporate endpoints run on this OS. This module covered the OS architecture, the Registry, Access Control Lists (ACLs), PowerShell telemetry, Event Log forensics, and proactive system hardening.
 
 ---
 
-## 🏛️ Hour 1: Windows Architecture & Process Analysis
+##  Hour 1: Windows Architecture & Process Analysis
 
 ### Technical Summary
 Windows NT uses a strict dual-mode architecture to protect the OS from applications. 
@@ -27,7 +27,7 @@ Using Task Manager (configured with PID, User name, and Image Path columns), I a
 
 ---
 
-## 📂 Hour 2: File System Layout & Registry
+##  Hour 2: File System Layout & Registry
 
 ### The NTFS Filesystem
 Explored the hierarchical structure of the `C:\` drive. Unlike Linux, NTFS utilizes robust Access Control Lists (ACLs) and journaling. 
@@ -47,7 +47,7 @@ Accessed `regedit` to explore the hierarchical database that stores all OS and a
 
 ---
 
-## 🔐 Hour 3: Users, Groups, and Access Control (ACLs)
+##  Hour 3: Users, Groups, and Access Control (ACLs)
 
 ### Identity & Privilege
 In Windows, users are identified by **SIDs (Security Identifiers)**. Permissions are typically managed via **Groups** rather than individual accounts.
@@ -64,7 +64,7 @@ Inspected the security properties of `C:\Windows\System32\drivers`.
 
 ---
 
-## 🐚 Hour 4: PowerShell Basics for Defenders
+## Hour 4: PowerShell Basics for Defenders
 
 ### Technical Reconnaissance
 Transitioned from the GUI to **PowerShell**, which returns data as actionable *objects* rather than plain text. This allows for surgical precision when hunting for threats.
@@ -77,7 +77,7 @@ Transitioned from the GUI to **PowerShell**, which returns data as actionable *o
 
 ---
 
-## 📜 Hour 5: Event Logs and Forensics
+## Hour 5: Event Logs and Forensics
 
 ### The "Flight Recorder" of Windows
 Explored the Windows Event Logging system, focusing on the three main logs: **System, Security, and Application**.
@@ -93,7 +93,7 @@ Explored the Windows Event Logging system, focusing on the three main logs: **Sy
 
 ---
 
-## 🛡️ Hour 6: Attack Surface Reduction & Hardening
+## Hour 6: Attack Surface Reduction & Hardening
 
 ### Proactive Defense
 Concluded the day by applying hardening techniques to minimize the system's attack surface.
@@ -105,12 +105,13 @@ Concluded the day by applying hardening techniques to minimize the system's atta
 
 ---
 
-## 🏆 Badges & Progress Evidence
+## Badges & Progress Evidence
 * **System Vitals Audit:** Successfully verified core system processes, mapping them to their correct Ring 0/Ring 3 contexts.
 * **Forensic Capability:** Navigated Event Logs to identify successful authentication events using Windows Event IDs.
 * **Access Control & Hardening:** Enforced service restrictions and audited NTFS permissions.
 
 ### 🖼️ Technical Evidence Vault
+* **Practical evidence:** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
 * **[Process Config Setup](win_taskmgr_config.):** Configuring Task Manager for security auditing.
 * **[Critical Process Audit](win_critical_processes.):** Verification of `lsass.exe` and `services.exe` legitimacy.
 * **[Registry Mapping](win_registry_hives):** Navigating the Windows Registry database structure.
