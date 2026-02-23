@@ -40,7 +40,7 @@ echo "------------------------------------------"
 
 # Queries the systemd journal for failed SSH attempts
 sudo journalctl -u ssh | grep -i "failed" | tail -n 5
-
+```
 ## 🕵️ Red Team Simulation & Technical Forensics
 
 To test the efficacy of my detection tool, I had to generate "attack" telemetry. I simulated a brute-force attack by targeting the local SSH daemon.
