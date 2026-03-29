@@ -121,23 +121,16 @@ Manual threat hunting is not scalable. To ensure continuous visibility, I implem
 ## 📸 Evidence & Artifacts
 
 *(Visual proof of the investigation, correlating directly to the incident timeline).*
+ **Practical evidence** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
 
 ### 1. Windows Threat Hunting (Explicit Credentials)
 *Description: Querying Event ID 4648 via PowerShell to identify potential privilege escalation attempts.*
-* **[Insert Image: Day 6 Identifying a potential Brute Force IoC by correlating frequency and source IP.Windows.png]**
-
 ### 2. Linux Brute Force Simulation & Detection
-*Description: Injecting a simulated SSH attack and subsequently querying `journalctl` to isolate the attacker's IP and attempt frequency.*
-* **[Insert Image: Day 6 Simulated attack injection.jpg]**
-* **[Insert Image: Day 6 threat detection Journalctl Analysis.png]**
-
+*Description: Injecting a simulated SSH attack and subsequently querying journalctl to isolate the attacker's IP and attempt frequency.*
 ### 3. Network Anomaly Detection (The Smoking Gun)
 *Description: Uncovering the unauthorized Netcat (`nc`) listener on Port 4444, confirming a successful system compromise.*
-* **[Insert Image: Day 6 Network Anomaly Detection Port 4444.jpg]**
-
 ### 4. Cross-Platform Port Audit
 *Description: Auditing the Windows host network connections to verify containment and check for lateral movement.*
-* **[Insert Image: Day 6 windows port audit.png]**
 
 ---
 
