@@ -1,4 +1,4 @@
-# Day 5: System Visibility & Log Monitoring for Cybersecurity
+# Day 05: System Visibility & Log Monitoring for Cybersecurity
 
 ## 🎯 Objective
 Transition from observing a system as a user to auditing it as a **Security Operations Center (SOC) Analyst**. This module covers process tracking, log analysis, cross-platform security event mapping (Windows/Linux), and automation scripting.
