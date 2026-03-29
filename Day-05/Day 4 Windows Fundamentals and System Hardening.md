@@ -1,120 +1,142 @@
-# Day 4: Windows Fundamentals & System Hardening
+# Day 5: System Visibility & Log Monitoring for Cybersecurity
 
-##  Overview
-Today's focus shifted from the Linux command line to the enterprise powerhouse: **Windows Fundamentals**. Understanding the Windows architecture is critical for a SOC Analyst, as the majority of corporate endpoints run on this OS. This module covered the OS architecture, the Registry, Access Control Lists (ACLs), PowerShell telemetry, Event Log forensics, and proactive system hardening.
+## 🎯 Objective
+Transition from observing a system as a user to auditing it as a **Security Operations Center (SOC) Analyst**. This module covers process tracking, log analysis, cross-platform security event mapping (Windows/Linux), and automation scripting.
 
----
-
-##  Hour 1: Windows Architecture & Process Analysis
-
-### Technical Summary
-Windows NT uses a strict dual-mode architecture to protect the OS from applications. 
-* **User Mode (Ring 3):** Applications (like browsers) run here in isolated virtual memory. They cannot access hardware directly.
-* **Kernel Mode (Ring 0):** The OS core, executive services, and hardware drivers run here with full privileges. 
-
-
-
-### Live Process Audit
-Using Task Manager (configured with PID, User name, and Image Path columns), I audited my live system to identify critical "VIP" processes:
-* **System (PID 4):** The NT Kernel. Verified it runs as `SYSTEM`.
-* **smss.exe:** The Session Manager (first user-mode process).
-* **lsass.exe:** Local Security Authority Subsystem. Verified it runs from `C:\Windows\System32`. This is a high-value target for attackers attempting credential dumping.
-* **services.exe:** The Service Control Manager.
-
-### Reflection
-**Q: Why does a bad driver in Kernel Mode crash the whole system?**
-**A:** Because Kernel Mode lacks memory isolation. If a driver attempts to write to protected memory or fails, the CPU triggers a "Bug Check" (Blue Screen of Death) to prevent data corruption.
+## 🛠️ Lab Environment
+* **VirtualBox:** Hosting Parrot OS (Debian-based)
+* **Windows Host:** PowerShell auditing
+* **Network:** TryHackMe Lab Network
 
 ---
 
-##  Hour 2: File System Layout & Registry
+## Phase 1: Live System Monitoring (Processes & Services)
 
-### The NTFS Filesystem
-Explored the hierarchical structure of the `C:\` drive. Unlike Linux, NTFS utilizes robust Access Control Lists (ACLs) and journaling. 
-* **Critical Path:** `C:\Windows\System32` houses essential binaries (like `cmd.exe`) and drivers.
+Understanding the "heartbeat" of a system is the first step in identifying anomalies. A **Process** is an active task executing code, while a **Service** is a background worker (daemon).
 
-### The Windows Registry (The OS "Brain")
-Accessed `regedit` to explore the hierarchical database that stores all OS and application configurations.
+### Linux Visibility
+Utilized `top`/`htop` for interactive monitoring and `ps aux` for snapshots.
 
+**Command Executed:**
+```bash
+# Sorting the top 11 processes by CPU usage to identify resource-heavy anomalies
+ps aux --sort=-%cpu | head -n 11
+```
 
+### Windows Visibility
+Prioritizing PowerShell for speed and scriptability over the GUI Task Manager.
 
-* **HKLM (HKEY_LOCAL_MACHINE):** Stores machine-wide settings (Hardware, Security, System software).
-* **HKCU (HKEY_CURRENT_USER):** Stores settings specific to the currently logged-in user profile.
+**Command Executed:**
+```powershell
+# Identifying the top 10 most CPU-intensive processes
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 10
+```
 
-### Reflection
-**Q: Where is the registry stored on disk?**
-**A:** Machine-wide hives are stored as files in `C:\Windows\System32\Config\`. User-specific hives are stored as `NTUSER.DAT` in the respective `C:\Users\<Username>` folder.
-
----
-
-##  Hour 3: Users, Groups, and Access Control (ACLs)
-
-### Identity & Privilege
-In Windows, users are identified by **SIDs (Security Identifiers)**. Permissions are typically managed via **Groups** rather than individual accounts.
-* Ran `whoami /groups` to verify my security context and membership in the `BUILTIN\Administrators` group.
-
-### NTFS Permissions Audit
-Inspected the security properties of `C:\Windows\System32\drivers`. 
-* **Observation:** The `Administrators` group has 'Full Control', but standard `Users` only have 'Read & Execute'. 
-* **Importance:** This enforces the **Principle of Least Privilege**, preventing standard accounts from tampering with kernel-level driver files.
-
-### Reflection
-**Q: If Alice is in the "Users" group, what ACL entry gives her read access to her Documents?**
-**A:** An **ACE (Access Control Entry)** within the folder's Discretionary Access Control List (DACL) that explicitly grants 'Read' permissions to her unique User SID.
+> **Security Insight:** Attackers often mask malicious processes by naming them similarly to legitimate ones (e.g., `svch0st.exe` instead of `svchost.exe`).
 
 ---
 
-## Hour 4: PowerShell Basics for Defenders
+## Phase 2: Locating the Evidence (Log Fundamentals)
 
-### Technical Reconnaissance
-Transitioned from the GUI to **PowerShell**, which returns data as actionable *objects* rather than plain text. This allows for surgical precision when hunting for threats.
+Logs are the "security camera footage" of an OS. Without them, there is no proof of an incident.
 
-### Executed Cmdlets
-* `Get-Process | Sort-Object CPU -Descending | Select-Object -First 10`: Enumerated top resource-consuming processes.
-* `Get-Service -Name "WinDefend"`: Verified the status of Windows Defender.
-* `Get-NetTCPConnection -State Established`: Audited active outbound and inbound network connections.
-* `Get-Service | Where-Object Status -eq "Running"`: Used the pipe (`|`) to filter for active services.
+### Core Log Locations
 
----
+| OS Environment | Primary Log Path / Tool | Purpose |
+| :--- | :--- | :--- |
+| **Linux (Debian/Ubuntu)** | `/var/log/auth.log` | Authentication (Logins, sudo usage) |
+| **Linux (RHEL/CentOS)** | `/var/log/secure` | Authentication for Red Hat systems |
+| **Linux (systemd)** | `journalctl -u ssh` | Binary journal querying |
+| **Windows** | Event Viewer -> Security | Audit Success and Failure events |
 
-## Hour 5: Event Logs and Forensics
-
-### The "Flight Recorder" of Windows
-Explored the Windows Event Logging system, focusing on the three main logs: **System, Security, and Application**.
-
-### Target Event IDs Tracked:
-* **Event ID 4624:** Successful Logon.
-* **Event ID 4625:** Failed Logon (Indicator of brute-force attacks).
-* **Event ID 4720:** User Account Creation (Indicator of unauthorized persistence).
-
-### Hands-On Investigation
-* Utilized **Event Viewer (`eventvwr.msc`)** to filter the Security Log specifically for Event ID 4624, allowing me to audit recent successful authentications on my machine.
-* Executed `Get-WinEvent -LogName Security -MaxEvents 5` via PowerShell for rapid, command-line forensic retrieval.
+**Command Executed (Linux):**
+```bash
+# Querying the systemd journal for all failed authentication attempts
+sudo journalctl | grep -i "failed"
+```
 
 ---
 
-## Hour 6: Attack Surface Reduction & Hardening
+## Phase 3: Sifting Through the Noise (Filtering & Searching)
 
-### Proactive Defense
-Concluded the day by applying hardening techniques to minimize the system's attack surface.
+### Linux Text Filtering (`grep`)
+```bash
+# Searching specifically for failed password attempts
+grep -i "failed" /var/log/auth.log
 
-### Applied Security Controls:
-1. **Service Hardening:** Audited `services.msc` and successfully changed the **Remote Registry** service startup type to `Disabled`. This closes a potential remote configuration tampering vector.
-2. **UAC Enforcement:** Verified that **User Account Control (UAC)** is active, ensuring privilege separation is enforced even for Admin accounts.
-3. **Patch Management:** Audited Windows Update to ensure the system is protected against known zero-day vulnerabilities.
+# Alternative using journalctl
+journalctl _AUDIT_TYPE_NAME=USER_AUTH | grep -i "failed"
+```
+
+### Windows Object Filtering (`Where-Object`)
+Focusing on **Event ID 4625** (Failed Logon).
+
+```powershell
+# Querying the Security log for the 5 most recent failed logins
+Get-EventLog -LogName Security -InstanceId 4625 -Newest 5
+```
+
+**Logon Type Context:**
+* **Type 2:** Interactive (Physical access)
+* **Type 3:** Network (Shared folders)
+* **Type 10:** Remote Desktop (RDP) — *High risk for external attacks.*
 
 ---
 
-## Badges & Progress Evidence
-* **System Vitals Audit:** Successfully verified core system processes, mapping them to their correct Ring 0/Ring 3 contexts.
-* **Forensic Capability:** Navigated Event Logs to identify successful authentication events using Windows Event IDs.
-* **Access Control & Hardening:** Enforced service restrictions and audited NTFS permissions.
+## Phase 4: Security Automation Scripts
 
-### 🖼️ Technical Evidence Vault
-* **Practical evidence:** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
-* **[Process Config Setup]:** Configuring Task Manager for security auditing.
-* **[Critical Process Audit]:** Verification of `lsass.exe` and `services.exe` legitimacy.
-* **[Registry Mapping]:** Navigating the Windows Registry database structure.
-* **[Registry Core Config]:** Inspecting the HKLM hive for system-wide software configurations.
-* **[Log Analysis]:** Investigating the Security Event Log for Event ID 4624 (Successful Logons).
-* **[Hardening Implementation]:** Disabling the Remote Registry service to reduce the system's attack surface.
+### Linux Bash Script (`check_logs.sh`)
+```bash
+#!/bin/bash
+echo "--- DAILY SECURITY REPORT ---"
+
+if [ -f /var/log/auth.log ]; then
+    grep -i "failed" /var/log/auth.log | tail -n 10
+elif [ -f /var/log/secure ]; then
+    grep -i "failed" /var/log/secure | tail -n 10
+else
+    echo "No standard auth log file found. Querying journalctl..."
+    journalctl | grep -i "failed" | tail -n 10
+fi
+```
+
+### Windows PowerShell Script (`CheckLogs.ps1`)
+```powershell
+Write-Host "--- CRITICAL SECURITY EVENTS (LAST 24H) ---" -ForegroundColor Cyan
+Get-EventLog -LogName Security -InstanceId 4624, 4625 -Newest 10 | Select-Object TimeGenerated, InstanceId, Message | Format-Table
+```
+
+---
+
+## Phase 5: Cross-Platform Visibility (Master Translation)
+
+| Security Event | Linux Methodology | Windows Event ID |
+| :--- | :--- | :--- |
+| **Active Processes** | `ps aux` / `htop` | `Get-Process` |
+| **Background Services**| `systemctl` | `Get-Service` |
+| **Successful Login** | `/var/log/auth.log` | **4624** |
+| **Failed Login** | Search "Failed password" | **4625** |
+| **Privilege Escalation**| `sudo` / `su` | **4672** |
+| **New User Created** | `useradd` | **4720** |
+| **Clearing Logs** | `history -c` / `rm` | **1102** (Critical Alert) |
+
+---
+
+## 🔧 Technical Sidebar: VM Troubleshooting
+**Issue:** Host-to-guest keyboard mapping desynchronization in VirtualBox.
+1. **Session Fix:** `setxkbmap us`
+2. **Persistent Fix:** Navigated to *System -> Preferences -> Hardware -> Keyboard -> Layouts*.
+3. **Driver Sync:** Re-mounted VirtualBox Guest Additions.
+
+---
+
+## 📸 Evidence & Artifacts
+1. **Process Monitoring:** `![Process Monitoring](assets/process_mon.png)`
+2. **Log Querying:** `![Log Query](assets/log_query.png)`
+3. **Automation Result:** `![Script Execution](assets/script_result.png)`
+
+---
+
+## 🧠 Summary & Mindset Shift
+Today marked a shift from observing systems to auditing them. Logs are not just text; they are a chronological narrative. Building cross-platform visibility and automating log parsing are the foundational skills required for a SOC Analyst role. **You cannot secure what you cannot see.**
+```
