@@ -1,139 +1,103 @@
-# Day 6: Threat Detection & Basic Incident Response
+Day 7: Web Application Penetration Testing & Vulnerability Assessment
 
-**Objective:** Transition from passive log monitoring to active threat hunting. This module focuses on identifying Indicators of Compromise (IoCs), auditing network anomalies, correlating cross-platform events to build an attack timeline, and executing basic incident containment.
+**Objective:** Transition from defensive threat detection and log monitoring to active offensive security operations. This module focuses on mapping a web application's attack surface, identifying critical vulnerabilities within the OWASP Top 10 framework, executing SQL Injection and Cross-Site Scripting (XSS) exploits, and achieving full administrative compromise through privilege escalation.
 
-**Mindset Shift:** Logs and processes are no longer just data—they are clues. Today’s focus is acting as a "Digital Detective" to connect isolated events into a cohesive narrative of an attack.
+**Mindset Shift:** Moving from "How do I defend this system?" to "How can I bypass these controls?" Today’s focus is acting as a **Security Consultant** to discover and document architectural weaknesses before they can be exploited by malicious actors.
 
 **Lab Environment:**
-* VirtualBox hosting Parrot OS (Linux)
-* Windows Host (PowerShell)
-* Simulated Attack Vectors (Brute Force, Reverse Shells)
+* **Target:** OWASP Juice Shop (Heroku-hosted)
+* **Operating System:** Parrot Security OS (Linux Mint Environment)
+* **Tooling:** Nmap, DIRB, Browser DevTools, SQL Injection Payloads
 
 ---
 
-## 🔎 Phase 1: Identifying Indicators of Compromise (IoCs)
+🔎 **Phase 1: Passive Reconnaissance & Manual Enumeration**
 
-An **Indicator of Compromise (IoC)** is digital forensic evidence that a system has been breached or is currently under attack. My objective was to hunt for anomalous authentication behaviors across both operating systems.
+Reconnaissance is the foundation of any successful engagement. My objective was to map the application's "front-of-house" logic and identify sensitive information leaks without triggering security alerts.
 
-### Linux Threat Hunting (Brute Force Detection)
-Attackers often use automated scripts to guess passwords. Instead of just finding failed logins, I used command-line text parsing to count the *frequency* of attacks from specific IP addresses.
+**Framework & Version Profiling**
+By inspecting the Document Object Model (DOM), I identified the specific technology stack powering the application.
+* **Technical Discovery:** Isolated the framework as **Angular version 20.3.18**.
+* **Command/Action:** Utilized Browser DevTools (F12) to audit the source code tags.
+* **Analysis:** Identifying specific version numbers is critical for "Zero-Day" research. This allowed me to cross-reference known CVEs (Common Vulnerabilities and Exposures) associated with this specific Angular build.
+* **Artifact:** `Day 7 -Framework version Leak-Angular version (20.3.18).png`
 
-**Command Executed (via Journalctl):**
-```bash
-# Extracting failed SSH root login attempts, sorting by IP, and counting the frequency
-sudo journalctl | grep "Failed password" | awk '{print $11}' | sort | uniq -c
-```
-*Analysis:* This command isolated the target IP (`192.168.1.108`) that was actively attempting to breach the `root` account, proving targeted reconnaissance rather than a random error.
-
-### Windows Threat Hunting (Explicit Credentials)
-On Windows, attackers who compromise a standard user account will often attempt to use the `runas` command or script to execute payloads as an Administrator. This triggers Event ID **4648**.
-
-**Command Executed (PowerShell):**
-```powershell
-# Querying the Security log specifically for the use of explicit credentials
-Get-WinEvent -FilterHashtable @{LogName='Security'; ID=4648} -MaxEvents 5
-```
-*Analysis:* Identifying Event 4648 is critical because it highlights potential **Privilege Escalation** or lateral movement attempts within the Windows environment.
+**Sensitive Data Exposure (The Admin Leak)**
+I audited public-facing reviews and feedback sections to check for PII (Personally Identifiable Information) leaks.
+* **Finding:** The application failed to mask user identities in reviews, explicitly exposing the administrative email: `admin@juice-sh.op`.
+* **Analysis:** This provided the "Target ID" for the next phase, significantly narrowing the focus for credential-based attacks.
+* **Artifact:** `Day 7 ADMIN EMAIL LEAK-Admin Email (admin@juice-sh.op)..png`
 
 ---
 
-## 🌐 Phase 2: Network Anomalies & Port Monitoring
+🌐 **Phase 2: Active Scanning & Infrastructure Analysis**
 
-Every open port is a potential doorway into the system. If a port is open and an authorized service didn't open it, it is likely a backdoor.
+Once the attack surface was mapped, I moved to active interrogation of the server infrastructure to find hidden entry points using command-line tools.
 
-### Linux Port Auditing
-Using the `ss` (socket statistics) tool to map listening services.
+**Network Service Enumeration (Nmap)**
+Using Nmap to identify open services and server fingerprints to understand the hosting environment.
+* **Command Executed:** `nmap -sV juice-shop.herokuapp.com`
+* **Analysis:** Confirmed ports 80 (HTTP) and 443 (HTTPS) were open on a Heroku router. Identifying the router fingerprint helps in understanding perimeter defenses and potential timeout behaviors.
+* **Artifact:** `DAY 7 -nmap service scan.png`
 
-**Command Executed:**
-```bash
-# Displaying all listening TCP/UDP ports and their associated processes
-sudo ss -tulpn
-```
-*Critical Finding:* Discovered process `nc` (Netcat) listening on **Port 4444**. Port 4444 is the default port for Metasploit and standard reverse shells. This is a severe, high-confidence IoC indicating an active backdoor.
-
-### Windows Port Auditing
-Using PowerShell to audit the host machine to ensure the attack didn't pivot from the VM to the host.
-
-**Command Executed:**
-```powershell
-# Listing listening ports and mapping them to their Process IDs (PIDs)
-Get-NetTCPConnection -State Listen | Select-Object LocalPort, OwningProcess
-```
-*Analysis:* Mapped expected ports (135, 445) to System processes. Found high-range ports and Port 8080, which require cross-referencing with Task Manager to ensure they belong to legitimate developer tools (like local web servers) rather than external listeners.
+**Directory Brute-Forcing & Troubleshooting (DIRB)**
+Using automated wordlists to find "hidden" directories not linked in the main UI.
+* **The Troubleshooting Process:** Encountered a repository failure where the system could not locate the standard `wordlists` package.
+* **Resolution:** Successfully pivoted by using `wget` to download a custom wordlist directly into the working directory.
+* **Command Executed:** `dirb http://juice-shop.herokuapp.com/ ./common.txt -N 503`
+* **Analysis:** By applying the `-N 503` flag, I filtered out the "Service Unavailable" noise from the Heroku firewall, uncovering sensitive directories including `/ftp`, `/Video`, and the high-value `/administration` panel.
+* **Artifact:** `Day 7-Wordlist_Download_Troubleshooting.png`
 
 ---
 
-## 🔗 Phase 3: Event Correlation — "The Kill Chain"
+🔗 **Phase 3: Vulnerability Exploitation — "The Kill Chain"**
 
-Correlation is the core skill of a SOC Analyst. A single failed login is an anomaly; a failed login followed by a successful login and a new port opening is a confirmed breach. 
+Using the intelligence gathered, I executed a multi-stage attack to bypass security controls and prove the impact of poor input sanitization.
 
-By correlating the logs generated in Phase 1 and the network data from Phase 2, I constructed the following attack timeline:
+**Authentication Bypass (SQL Injection)**
+I targeted the login portal to test how the backend database handles manipulated queries.
+* **Payload Used:** `' OR 1=1 --`
+* **Analysis:** This "Classic SQLi" payload forced the database to evaluate the login statement as `True` regardless of the password. By injecting this into the email field, I broke the logic of the SQL query and was granted access as the first user in the table—the Administrator.
+* **Artifact:** `Day 7-SQL_Injection_Bypass.jpg`
 
-### **[INCIDENT TIMELINE: CORRELATION REPORT]**
-
-| Timestamp | Host OS | Event Type | Event ID / Process | Critical Analyst Observation |
-| :--- | :--- | :--- | :--- | :--- |
-| **13:53** | Windows | Failed Logon | ID 4625 | Initial unauthorized access attempt on the Windows host. |
-| **18:00** | Parrot OS | Failed Auth | `sshd[1234]` | Attacker (`192.168.1.108`) pivoted to target the Linux VM's `root` account via SSH. |
-| **19:01** | Parrot OS | Log Query | `journalctl` | Confirmed the brute-force footprint in the system journal. |
-| **19:29** | Parrot OS | **New Listener** | Port 4444 (`nc`)| **CRITICAL:** Attacker successfully bypassed authentication and spawned a Netcat reverse shell listener. |
-| **19:42** | Windows | Admin Auth | ID 4648 | Explicit credentials used on the host. Potential credential harvesting and lateral movement back to Windows. |
-
-**Incident Conclusion:** The correlated data proves a multi-stage attack. The adversary attempted entry via Windows, pivoted to brute-force the Linux VM, successfully established a persistent backdoor (Port 4444) via Netcat, and is now attempting to use harvested credentials to move laterally back across the network.
+**Client-Side Execution (Reflected XSS)**
+Testing the search bar for improper output encoding to execute scripts in the victim's browser.
+* **Payload Used:** `<iframe src="javascript:alert('Hacked')">`
+* **Analysis:** The application rendered the script directly in the browser's DOM. This proved that an attacker could execute malicious JavaScript to steal session cookies or perform actions on behalf of other users.
+* **Artifact:** `Day 7-XSS_Success_Notification..png`
 
 ---
 
-## 🛡️ Phase 4: Basic Incident Response (Containment)
+🛡️ **Phase 4: Privilege Escalation & Impact Analysis**
 
-Upon confirming the compromise in Phase 3, immediate containment actions are required to sever the attacker's connection without destroying forensic evidence.
+Upon gaining initial access, the objective was to demonstrate the depth of the compromise and the potential for lateral movement.
 
-**The Golden Rule of Response:** Contain > Eradicate > Recover. 
-*(Pro-Tip: A great analyst preserves the malware in an isolated state for reverse-engineering before deleting it.)*
-
-### Linux Containment Actions
-Terminating the rogue Netcat listener and disabling any persistent services.
-```bash
-# Killing the specific process ID associated with the malicious port
-sudo kill -9 [PID_of_Netcat]
-# If attached to a service, stopping and disabling it
-sudo systemctl stop [MaliciousService]
-sudo systemctl disable [MaliciousService]
-```
-
-### Windows Containment Actions
-Neutralizing suspect processes identified during the port audit.
-```powershell
-# Forcing the termination of a compromised or rogue executable
-Stop-Process -Id [OwningProcess_ID] -Force
-```
+**Broken Access Control (Administrative Compromise)**
+By manually navigating to the `/administration` endpoint while authenticated via the SQLi bypass, I tested for server-side authorization checks.
+* **Critical Finding:** The application relied on "Security through Obscurity" rather than robust authorization. I gained full access to the User Management table.
+* **Impact:** From this dashboard, I could view every registered email address and had the authority to delete user profiles and feedback at will.
+* **Artifact:** `Day 7-Admin_Panel_Privilege_Escalation.png`
 
 ---
 
-## 🤖 Phase 5: Alerting & Monitoring Automation
+🤖 **Phase 5: Mitigation & Remediation Recommendations**
 
-Manual threat hunting is not scalable. To ensure continuous visibility, I implemented basic alerting mechanisms.
-
-* **Linux Automation:** Drafted a shell script to pipe `grep "Failed password" /var/log/auth.log` into an `alerts.txt` file, scheduled to run hourly via `crontab -e`.
-* **Windows Automation:** Utilized **Windows Task Scheduler** to execute a PowerShell script daily that parses the Security Event Log for ID 4625 and 4648, exporting anomalies to a centralized CSV for morning review.
-
----
-
-## 📸 Evidence & Artifacts
-
-*(Visual proof of the investigation, correlating directly to the incident timeline).*
- **Practical evidence** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
-
-### 1. Windows Threat Hunting (Explicit Credentials)
-*Description: Querying Event ID 4648 via PowerShell to identify potential privilege escalation attempts.*
-### 2. Linux Brute Force Simulation & Detection
-*Description: Injecting a simulated SSH attack and subsequently querying journalctl to isolate the attacker's IP and attempt frequency.*
-### 3. Network Anomaly Detection (The Smoking Gun)
-*Description: Uncovering the unauthorized Netcat (`nc`) listener on Port 4444, confirming a successful system compromise.*
-### 4. Cross-Platform Port Audit
-*Description: Auditing the Windows host network connections to verify containment and check for lateral movement.*
+To secure the application, I drafted the following professional remediation strategy:
+1.  **Implement Parameterized Queries:** To prevent SQL Injection, all database queries must treat user input as data, not executable code.
+2.  **Context-Aware Output Encoding:** To prevent XSS, all user-supplied data must be sanitized/encoded before being rendered in the browser.
+3.  **Enforce Server-Side Authorization:** Access to administrative endpoints must be verified via secure session tokens and role-based permissions (RBAC), regardless of whether the URL is "hidden."
 
 ---
 
-## 🧠 Daily Reflection
-Today was the tipping point between IT Administration and Cybersecurity. By learning to correlate a failed Windows login with an open Linux port, I practically applied the "Kill Chain" methodology. It became clear that individual log entries are just noise; security value is entirely derived from context and timeline correlation. Automation will be my next major focus to ensure these IoCs are flagged the second they occur, rather than hours after the breach.
-```
+📸 **Evidence & Artifacts**
+
+* **Reconnaissance:** `Day 7 -Attack surface overview.png`
+* **Directory Discovery:** `Day 7-DIRB_Filter_503_Errors.png`
+* **Vulnerability Proof:** `Day 7-XSS_Reflected_Payload.png`
+* **Environment Setup:** `Day 7 - DIRB_Installation_Error_Log.png`
+
+---
+
+**🧠 Daily Reflection**
+
+Today was a major milestone in my cybersecurity pivot. By successfully executing the "Kill Chain"—moving from a simple email leak to full administrative control—I learned that security is only as strong as its weakest link. It became clear that while automated tools like DIRB and Nmap are essential, the real value of a security professional lies in the ability to correlate small leaks (like a framework version or a public email) into a successful exploitation strategy. This "Consultant Mindset" will be the focus of my portfolio development as I move toward more complex network environments.
