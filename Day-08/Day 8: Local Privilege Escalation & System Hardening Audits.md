@@ -5,7 +5,6 @@
 **Mindset Shift:** Moving from "How do I get in?" to "How do I climb?" Today’s focus is acting as a **System Auditor** to identify architectural flaws—such as insecure SUID bits, sudo misconfigurations, and writable system files—and documenting the remediation steps required to harden the environment.
 
 **Lab Environment:**
-* **Hardware:** Lenovo ThinkPad X390 Yoga.
 * **OS:** Linux Mint 22 (Wilma) / Parrot Security environment.
 * **Tools:** LinPEAS (Privilege Escalation Awesome Script), GTFOBins, Terminal-based enumeration (find, grep, ls, sudo).
 
