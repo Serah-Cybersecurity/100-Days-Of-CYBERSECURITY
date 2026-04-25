@@ -1,94 +1,100 @@
-**Day 7: Web Application Penetration Testing & Vulnerability Assessment**
+# Day 8: Local Privilege Escalation & System Hardening Audits
 
-**Objective:** Transition from defensive threat detection and log monitoring to active offensive security operations. This module focuses on mapping a web application's attack surface, identifying critical vulnerabilities within the OWASP Top 10 framework, executing SQL Injection and Cross-Site Scripting (XSS) exploits, and achieving full administrative compromise through privilege escalation and authorization bypass.
+**Objective:** Transition from external network reconnaissance to internal system auditing. This module focuses on identifying misconfigurations within the Linux operating system, understanding the mechanics of permission inheritance, and validating "attack paths" that allow a low-level user to achieve full **root** (Administrative) compromise.
 
-**Mindset Shift:** Moving from "How do I defend this system?" to "How can I bypass these controls?" Today’s focus is acting as a **Security Consultant** to discover, document, and analyze architectural weaknesses before they can be exploited by malicious actors. Vulnerabilities are no longer just bugs—they are logical entry points into the core of an enterprise.
+**Mindset Shift:** Moving from "How do I get in?" to "How do I climb?" Today’s focus is acting as a **System Auditor** to identify architectural flaws—such as insecure SUID bits, sudo misconfigurations, and writable system files—and documenting the remediation steps required to harden the environment.
 
 **Lab Environment:**
-* **VirtualBox hosting Parrot Security OS (Linux Mint Environment)**
-* **OWASP Juice Shop (Vulnerable Web Application Platform)**
-* **Browser DevTools & Terminal-based Security Tools (Nmap, DIRB)**
-* **SQL Injection Payloads & Custom Wordlists**
+* **Hardware:** Lenovo ThinkPad X390 Yoga.
+* **OS:** Linux Mint 22 (Wilma) / Parrot Security environment.
+* **Tools:** LinPEAS (Privilege Escalation Awesome Script), GTFOBins, Terminal-based enumeration (find, grep, ls, sudo).
 
-**🔎 Phase 1: Identifying Information Leaks & Attack Surface Mapping**
+---
 
-The primary objective was to hunt for sensitive data exposure and framework vulnerabilities through both passive and active browser-based enumeration, identifying how the application handles data before any tools were even launched.
+## 🕒 Hour 1: The Hierarchy of Permissions & Mental Models
+The objective was to establish a baseline of the current user's environment and understand the two primary directions of movement within a compromised system.
 
-**Technology Stack & Framework Profiling**
+* **Vertical Privilege Escalation:** Moving from a standard user (e.g., `cs`) to a superuser (`root`).
+* **Horizontal Privilege Escalation:** Moving from one standard user to another to access different datasets or SSH keys.
+* **Initial Interrogation:** Used `whoami`, `id`, and `hostname` to confirm the starting point and group memberships.
 
-By inspecting the Document Object Model (DOM) and analyzing the response headers, I identified the specific technology stack powering the application.
-* **Technical Discovery:** Isolated the framework as **Angular version 20.3.18**.
-* **Analysis:** Identifying specific version numbers is a critical step in the reconnaissance phase. It allowed me to cross-reference known CVEs (Common Vulnerabilities and Exposures) associated with this specific Angular build, revealing that older or unpatched versions often harbor vulnerabilities related to client-side sanitization.
+---
 
-**Sensitive Data Exposure (The Admin Leak)**
+## 🕒 Hour 2: Automated System Auditing (LinPEAS)
+Rather than checking thousands of files manually, I utilized **LinPEAS**, the industry-standard automated enumerator, to identify "low-hanging fruit" and high-risk misconfigurations.
 
-I audited public-facing reviews, customer feedback sections, and FAQ pages to check for PII (Personally Identifiable Information) leaks and metadata exposure.
-* **Finding:** The application failed to mask user identities in the product review section, explicitly exposing the primary administrative email: **admin@juice-sh.op**.
-* **Analysis:** This discovery provided the "Target ID" for the next phase. In a real-world scenario, this email would be the primary target for credential stuffing, brute force attacks, or targeted phishing (Whaling) to gain entry into the management tier.
+* **Command Executed:** `./linpeas.sh > linpeas_results.txt`
+* **Analysis of Output:**
+    * **Kernel Context:** Identified the system as running Kernel `6.8.0`, which is modern and largely patched against famous automated root exploits (e.g., DirtyPipe).
+    * **PATH Hijacking:** Discovered that `/home/cs/.local/bin` is user-writable and included in the system PATH, presenting a risk for binary hijacking.
+    * **Hardening Status:** Found that **AppArmor** is active but "unconfined," indicating the security framework is present but not yet enforcing strict profiles on all applications.
 
-**🌐 Phase 2: Infrastructure Auditing & Directory Discovery**
+---
 
-Every hidden directory or unlinked file is a potential doorway. My objective was to use automated tools to uncover the "hidden" side of the server and map out the file system architecture.
+## 🕒 Hour 3: The "Big Three" Local Privilege Paths
+This phase involved manual verification of the "Red/Yellow" flags raised by the automated scan. I focused on the three most common ways a Linux system is compromised from the inside.
 
-**Network Service Enumeration (Nmap)**
+### 1. SUID Binary Hunt
+* **Action:** Searched for files with the "Set User ID" bit, which allows a program to run with root authority.
+* **Discovery:** Identified `/usr/bin/mount` and `/opt/lampp/bin/suexec` as SUID binaries. These are now high-priority audit targets.
 
-Using Nmap to identify open services, port status, and server fingerprints to understand the hosting infrastructure.
-* **Command Executed:** `nmap -sV juice-shop.herokuapp.com`
-* **Analysis:** The scan confirmed that ports **80 (HTTP)** and **443 (HTTPS)** were open and operating behind a **Heroku-router**. This fingerprint established the perimeter boundaries, indicating that the application is likely containerized, which influences how an attacker might attempt to pivot within the internal network.
+### 2. Sudo Privileges
+* **Action:** Executed `sudo -l` to map the current user's "superpowers."
+* **Discovery:** The user `cs` has `(ALL : ALL) ALL` permissions. While necessary for an admin, this represents a "Total Compromise" risk if the account is hijacked.
 
-**Directory Brute-Forcing (DIRB)**
+### 3. Critical File Permissions
+* **Action:** Audited the `/etc/` directory for world-writable files.
+* **Discovery:** Confirmed that sensitive files like `/etc/shadow` (password hashes) are correctly locked down with `-rw-r-----` permissions, accessible only by root and the shadow group.
 
-Using automated wordlists to find folders and files that are not linked in the main user interface.
-* **Troubleshooting:** Encountered repository failures when fetching standard wordlists. I successfully pivoted by using `wget` to source a manual wordlist from a remote repository, ensuring the engagement could continue despite local environment hurdles.
-* **Command Executed:** `dirb http://juice-shop.herokuapp.com/ ./common.txt -N 503`
-* **Analysis:** By applying the **-N 503** flag, I filtered out the "Service Unavailable" noise returned by the Heroku firewall. This allowed me to uncover sensitive, high-value directories including **/ftp** (likely for file storage), **/Video**, and the restricted **/administration** panel.
+---
 
-**🔗 Phase 3: Vulnerability Exploitation — "The Kill Chain"**
+## 🕒 Hour 4: Enterprise Lateral Movement (AD Concepts)
+Privilege escalation in a corporate environment often moves from a single Linux machine into the **Active Directory (AD)** domain.
 
-Correlation is the hallmark of an expert analyst. By combining the administrative email discovered in Phase 1 with the hidden login portal identified in Phase 2, I executed the following attack timeline to breach the system.
+* **Lateral Movement:** Moving between workstations to find cached credentials.
+* **BloodHound Mapping:** Conceptually mapped how graph theory is used to find the shortest path from a "Standard User" to a "Domain Admin."
+* **Defense (Tiered Administration):** Documented the requirement that high-privilege admins must never log into lower-tier workstations to prevent credential harvesting.
 
-**Authentication Bypass (SQL Injection)**
 
-I targeted the login portal to test how the backend database handles manipulated queries and whether it uses prepared statements.
-* **Payload Used:** `' OR 1=1 --`
-* **Analysis:** This payload manipulated the SQL query logic on the backend. Because the application concatenated user input, the payload forced the database to evaluate the statement as **True** for the first user record. I successfully bypassed authentication and was granted full access as the **Administrator** without possessing a password.
 
-**Client-Side Execution (Reflected XSS)**
+---
 
-Testing the search bar for improper output encoding to see if user-supplied scripts are executed by the browser.
-* **Payload Used:** `<iframe src="javascript:alert('Hacked')">`
-* **Analysis:** The application failed to sanitize the input, rendering the script directly in the browser's DOM. This execution proved that an attacker could inject malicious JavaScript to steal session cookies, capture keystrokes, or redirect users to a malicious site.
+## 🕒 Hour 5: Technical Validation & Safe Proofing (GTFOBins)
+Correlation is the mark of a professional. I cross-referenced my findings with the **GTFOBins** database to prove the risk without executing destructive exploits.
 
-**🛡️ Phase 4: Privilege Escalation & Incident Simulation (Containment)**
+* **Validation Case Study:** The `mount` binary.
+* **The Chain of Evidence:**
+    1.  **LinPEAS** flagged it as SUID.
+    2.  **GTFOBins** confirmed it can be abused for "Arbitrary File Read."
+    3.  **Manual Check** (`ls -l`) confirmed the `s` bit is live on the system.
+* **Conclusion:** The vulnerability is **Validated** as a True Positive.
 
-Upon confirming the compromise, I navigated to the hidden administrative dashboard found earlier to assess the maximum impact of the breach.
+---
 
-**Administrative Compromise**
-* **Critical Finding:** Accessed the **User Management table**, which allowed for full visibility of all registered users and their PII. More critically, the interface provided the authority to arbitrarily delete user feedback and potentially modify account statuses.
-* **Impact Analysis:** This represents a total loss of **Confidentiality** and **Integrity** for the application database.
-* **Containment Recommendation:** To sever the attacker's ability to manipulate logic, the development team must implement **Parameterized Queries** immediately and enforce server-side role validation for all `/admin` routes.
+## 🕒 Hour 6: Mitigation & Hardening Strategy
+A security professional must provide a clear path to recovery. I drafted the following remediation strategy:
 
-**🤖 Phase 5: Mitigation & Secure Architecture Recommendations**
+1.  **Remove Unnecessary SUID Bits:** Any binary not requiring elevated privileges for standard users should have the SUID bit stripped (`chmod u-s`).
+2.  **Principle of Least Privilege (PoLP):** Transition from `(ALL : ALL) ALL` sudo access to specific, command-limited aliases in the `/etc/sudoers` file.
+3.  **Persistence Monitoring:** Regularly audit the `/etc/cron*` directories for unauthorized scheduled tasks that could be used for maintaining root access.
 
-A security professional must provide a clear path to recovery. I drafted the following remediation strategy based on the OWASP Top 10:
-* **Parameterized Queries (Prepared Statements):** All database interactions must treat user input as data, never as executable code, to eliminate SQL Injection risks.
-* **Output Encoding:** Implement strict, context-aware sanitization to encode data (e.g., converting `<` to `&lt;`) before it is rendered in the browser.
-* **RBAC (Role-Based Access Control):** Enforce strict server-side authorization checks for all administrative endpoints; knowing a URL should never be the only requirement for access.
+---
 
-**📸 Evidence & Artifacts**
+## 📸 Evidence & Artifacts
 
-**1. Passive Reconnaissance (PII Leak)**
-* **Description:** Documentation of the administrative email address found via unprotected product reviews.
+| Artifact Name | Description |
+| :--- | :--- |
+| `Manual_SUID_Audit.png` | Documentation of the `find` command identifying elevated binaries. |
+| `Shadow_File_Permissions.png` | Verification that the system's credential store is properly hardened against unauthorized reads. |
+| `Sudo_Privilege_Verification.png` | Screenshot of the `sudo -l` output defining the user's administrative reach. |
+| `Cron_Directory_Inspection.png` | Evidence of a persistence audit across system-wide scheduled task folders. |
+| `Validation_Source_GTFOBins.png` | Research evidence showing the known exploit path for the `mount` binary. |
+| `Local_Verification_Mount_Binary.png` | The "Smoking Gun": Proving the metadata on the local system matches the known vulnerability. |
+| `System_Hardening_AppArmor.png` | Documentation of the current OS hardening status and kernel version. |
 
-**2. Active Scanning (Network Discovery)**
-* **Description:** Nmap service scan results identifying the cloud-hosting architecture and open web ports.
+---
 
-**3. Exploitation (The SQLi Bypass)**
-* **Description:** Successful proof-of-concept showing a logged-in administrative session achieved via the `' OR 1=1 --` payload.
+## 🧠 Daily Reflection
+Today shifted the focus from "finding a bug" to "analyzing an architecture." By running LinPEAS and then manually verifying the results via `ls`, `grep`, and **GTFOBins**, I learned that automated tools only provide the *questions*—the security professional must provide the *answers*. Documenting the "Successes" (like the locked-down `/etc/shadow`) is just as important as finding the "Flaws." My focus is no longer on hacking; it is on **Forensic Auditing and Verifiable Remediation.**
 
-**4. Privilege Escalation (The Smoking Gun)**
-* **Description:** Screenshot of the unauthorized access to the restricted **Administrative Panel**, demonstrating full control over the application's user data.
-
-**🧠 Daily Reflection**
-
-Today marked the tipping point between being a system administrator and becoming a cybersecurity professional. By learning to correlate a simple email leak with an open directory and an unsanitized input field, I practically applied the **"Kill Chain"** methodology. It is now clear that individual vulnerabilities are often just noise; real security value is derived from understanding the entire application lifecycle and documenting how isolated flaws can be chained together to achieve a total system compromise. My next focus will be on the **Remediation** phase—ensuring these doors stay closed once they are identified.
+Great work on completing Day 8. You've built a folder of evidence that would impress any hiring manager. Are you ready to push this to your repo, or should we refine that LinkedIn caption one last time?
