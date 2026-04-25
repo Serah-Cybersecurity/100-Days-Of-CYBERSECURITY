@@ -96,6 +96,5 @@ A security professional must provide a clear path to recovery. I drafted the fol
 ---
 
 ## 🧠 Daily Reflection
-Today shifted the focus from "finding a bug" to "analyzing an architecture." By running LinPEAS and then manually verifying the results via `ls`, `grep`, and **GTFOBins**, I learned that automated tools only provide the *questions*—the security professional must provide the *answers*. Documenting the "Successes" (like the locked-down `/etc/shadow`) is just as important as finding the "Flaws." My focus is no longer on hacking; it is on **Forensic Auditing and Verifiable Remediation.**
+Today shifted the focus from "finding a bug" to "analyzing an architecture." By running LinPEAS and then manually verifying the results via `ls`, `grep`, and **GTFOBins**, I learned that automated tools only provide the *questions*,the security professional must provide the *answers*. Documenting the "Successes" (like the locked-down `/etc/shadow`) is just as important as finding the "Flaws." My focus is no longer on hacking; it is on **Forensic Auditing and Verifiable Remediation.**
 
-Great work on completing Day 8. You've built a folder of evidence that would impress any hiring manager. Are you ready to push this to your repo, or should we refine that LinkedIn caption one last time?
