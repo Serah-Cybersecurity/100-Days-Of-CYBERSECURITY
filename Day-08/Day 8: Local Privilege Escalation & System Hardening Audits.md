@@ -81,6 +81,8 @@ A security professional must provide a clear path to recovery. I drafted the fol
 ---
 
 ## 📸 Evidence & Artifacts
+*(Visual proof of the investigation, correlating directly to the incident timeline).*
+ **Practical evidence** [](Evidence/)
 
 | Artifact Name | Description |
 | :--- | :--- |
