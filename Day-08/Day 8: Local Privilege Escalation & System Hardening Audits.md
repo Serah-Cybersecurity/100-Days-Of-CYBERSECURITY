@@ -82,8 +82,8 @@ A security professional must provide a clear path to recovery. I drafted the fol
 
 ## 📸 Evidence & Artifacts
 *(Visual proof of the investigation, correlating directly to the incident timeline).*
- **Practical evidence** [](Evidence/)
-
+ **Practical evidence** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
+ 
 | Artifact Name | Description |
 | :--- | :--- |
 | `Manual_SUID_Audit.png` | Documentation of the `find` command identifying elevated binaries. |
