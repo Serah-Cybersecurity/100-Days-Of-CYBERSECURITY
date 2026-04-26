@@ -1,4 +1,3 @@
-```markdown
 # Day 9: Incident Response Lifecycle & Host-Based Forensics
 
 **Objective:** Execute the full NIST Incident Response (IR) Lifecycle (Preparation, Detection & Analysis, Containment, Eradication, and Recovery). This module focuses on safely identifying a malicious artifact, establishing cryptographic evidence integrity, correlating local data with global threat intelligence, isolating the compromised host, and auditing for hidden persistence mechanisms.
