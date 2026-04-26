@@ -57,7 +57,10 @@ A security professional must apply single-host lessons to an enterprise environm
 ---
 
 ### 📸 Evidence & Artifacts
+*(Visual proof of the investigation, correlating directly to the incident timeline).*
+**Practical evidence** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
 
+ 
 | Artifact Name | Description |
 | :--- | :--- |
 | `IR_D9_01_SHA256_Hash_Generation.png` | Documentation of evidence integrity. Generated a SHA-256 fingerprint in the Linux CLI prior to analysis. |
