@@ -7,7 +7,7 @@ Today's transition moves from the perspective of an active network operator to t
 
 ## ⏱️ Hour-by-Hour Technical Execution
 
-**Lab Environment:** OS: Parrot Security OS (VM) | Host: Windows 11 (ThinkPad X390 Yoga)
+**Lab Environment:** OS: Kali OS (VM) | Host: LINUX MINT (HP ELITEBOOK)
 **Core Tools:** Volatility 3, Wireshark, `nslookup`, `ping`, CLI network utilities
 
 ### Hour 1: Framework Initialization & Dependency Validation
