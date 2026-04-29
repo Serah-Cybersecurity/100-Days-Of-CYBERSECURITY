@@ -1,78 +1,84 @@
-# Day 9: Incident Response Lifecycle & Host-Based Forensics
+## **Day 10: SIEM Deployment, Detection Engineering & MITRE ATT&CK Mapping**
 
-**Objective:** Execute the full NIST Incident Response (IR) Lifecycle (Preparation, Detection & Analysis, Containment, Eradication, and Recovery). This module focuses on safely identifying a malicious artifact, establishing cryptographic evidence integrity, correlating local data with global threat intelligence, isolating the compromised host, and auditing for hidden persistence mechanisms.
-
-**Mindset Shift:** Moving from "Auditing a static system" to "Active threat neutralization." Today's focus is acting as a **First Responder (SOC Analyst)** where speed, precise documentation, and strict adherence to the Chain of Custody are required to stop an active breach without destroying critical forensic evidence.
-
-**Lab Environment:**
-* **OS:** Linux Environment (pulse-HP-Notebook).
-* **Tools:** Native Linux CLI (`sha256sum`, `crontab`, `ufw`, `ps`, `file`, `kill`), VirusTotal (Threat Intelligence Correlation).
+### **The Mindset Shift: From "Exploitation" to "Continuous Detection"**
+Today’s focus represented a critical transition from an offensive mindset ("How do I break in and escalate?") to a defensive, Detection Engineering methodology ("How do I ensure no lateral movement or escalation goes unnoticed?"). Moving from point-in-time penetration testing to continuous, telemetry-driven monitoring requires anticipating adversary behaviors and building automated, high-fidelity tripwires for persistence and credential dumping techniques.
 
 ---
 
-### 🕒 Hour 1: Evidence Integrity & Cryptographic Baselining (Preparation & Detection)
+## 🕒 Hour-by-Hour Technical Execution
 
-The objective was to identify a suspicious file and secure it cryptographically before any analysis occurred to preserve the legal Chain of Custody.
-* **Artifact Generation:** Created a simulated malicious artifact (`sample_malware.txt`) utilizing the industry-standard EICAR antivirus test string via the `echo` command.
-* **Initial Interrogation:** Verified file properties, permissions, and existence using `ls -l` and the `file` command to look past potentially deceptive file extensions.
-* **Cryptographic Fingerprinting:** Before manipulating the file, generated a hash using `sha256sum sample_malware.txt`. This provided a unique mathematical signature (starting with `131f95c...`), ensuring **Data Integrity**. If even one byte of the file is altered during investigation, the hash will change, proving evidence tampering.
+### **Hour 1-2: Telemetry Ingestion & SIEM Pipeline Configuration**
+* **Goal:** Establish a robust log ingestion pipeline to monitor host-level authentication and authorization events.
+* **Action:** Configured Splunk Enterprise to actively monitor Linux system logs.
+    ```bash
+    # Setting up the data inputs for local host monitoring
+    sudo tail -f /var/log/auth.log
+    ```
+* **Discovery:** Validated that the Universal Forwarder/local ingestion engine was successfully normalizing `auth.log` data, providing visibility into `sudo` execution and session initiations.
 
-### 🕒 Hour 2: Threat Intelligence Correlation (Analysis)
+### **Hour 3-4: Detection Engineering & Alert Automation**
+* **Goal:** Translate raw log telemetry into automated security intelligence by filtering out administrative noise.
+* **Action:** Developed specific Search Processing Language (SPL) queries to hunt for high-risk indicators and tied them to automated Cron schedules (`*/1 * * * *`).
+    ```splunk
+    # SPL query for detecting SUID bit manipulation (Privilege Escalation)
+    index=main "chmod" ("+s" OR "4777" OR "u+s")
+    ```
+* **Discovery:** Successfully established a real-time polling metric. The SIEM is now configured to trigger high-severity notifications upon detecting specific command-line arguments.
 
-Rather than executing the file to see what it does, I transitioned from local identification to global intelligence correlation to understand the threat safely.
-* **Precision Querying:** Queried the VirusTotal database. *Lesson Learned:* Initial searches combining the hash and filename returned errors. I refined the search to utilize *only* the SHA-256 hash, as threat intelligence databases index by cryptographic signatures, not localized filenames.
-* **Vendor Signature Analysis:** Analyzed the vendor breakdown, identifying a conclusive 62/67 malicious detection rate across global security engines.
-* **Threat Identification:** Successfully identified the specific malware family (EICAR) and analyzed associated Threat Actor behavior flags (e.g., known-distributor traits) to understand the nature of the simulated threat without detonating it locally.
-
-### 🕒 Hour 3: Host Isolation & Egress Filtering (Containment)
-
-With the threat confirmed, the immediate priority was to stop lateral movement (infecting other machines) and sever any potential Command & Control (C2) communication from the attacker.
-* **Host-Based Lockdown:** Implemented strict network containment using the Uncomplicated Firewall (`ufw`).
-* **Policy Execution:** Applied a "Default Deny" architecture by executing `sudo ufw default deny incoming` and `sudo ufw default deny outgoing`, followed by enabling the firewall. This keeps the machine powered on for live memory forensics while blinding the attacker.
-* **Mathematical Verification:** It is not enough to apply a rule; it must be verified. I proved successful egress filtering by attempting to ping an external IP (`google.com`), resulting in 100% packet loss and temporary name resolution failure.
-
-### 🕒 Hour 4: Persistence Hunting & Process Termination (Eradication)
-
-A core tenet of Incident Response is that attackers rarely leave after dropping a file; they establish "Persistence" to survive system reboots. This phase focused on finding the roots of the infection.
-* **User-Level Audit:** Conducted a persistence audit by checking for unauthorized scheduled tasks using `crontab -l` for the current user.
-* **System-Level Audit:** Expanded the threat hunt to system-wide directories by analyzing `/etc/cron.*` (daily, weekly, monthly) for hidden, root-level backdoors.
-* **Process Mapping & Termination:** Documented the methodology for tracking the execution source via the process tree (`ps -auxf | grep -i "sample"`) to identify parent-child process relationships, and forcefully terminating malicious PIDs using `kill -9`.
-* **Secure Deletion:** Executed the final removal of the physical artifact (`rm sample_malware.txt`).
-
-### 🕒 Hour 5: Service Restoration & Post-Incident Review (Recovery)
-
-With the threat eradicated and persistence mechanisms cleared, the system was safely transitioned back to an operational state.
-* **Containment Removal:** Disabled the network lockdown (`sudo ufw disable`) and restored verified core services.
-* **Executive Documentation:** Drafted the formal Incident Report categorizing the attack using the **MITRE ATT&CK Framework**:
-    * *Initial Access:* T1566 (Phishing)
-    * *Execution:* T1059 (Command and Scripting Interpreter)
-* **Monitoring:** Established a protocol for enhanced logging and close-watch monitoring on the host for the subsequent 24-48 hours to ensure no secondary beacons activated.
-
-### 🕒 Hour 6: Enterprise Scaling & Tooling Strategy (Lessons Learned)
-
-A security professional must apply single-host lessons to an enterprise environment. I documented the strategic remediation required to automate this workflow across thousands of endpoints.
-* **EDR Deployment:** Formulated a transition strategy from manual CLI forensics to using an Endpoint Detection and Response (EDR) platform (such as the open-source Wazuh) to automate the detection-to-containment pipeline.
-* **Architecture Hardening:** Documented recommendations for the network team, including the implementation of strict File Execution Prevention policies and advanced Security Awareness Training focused on identifying double-extension obfuscation (e.g., `.txt.exe`).
+### **Hour 5: Adversary Simulation & Audit Validation**
+* **Goal:** Execute controlled Red Team simulations to validate the Blue Team detection pipeline and ensure audit accountability.
+* **Action:** Simulated MITRE ATT&CK techniques T1548.001 and T1003.008, followed by a system sanitization and audit check.
+    ```bash
+    # Simulating T1548.001 (SUID Persistence)
+    sudo chmod u+s /tmp/not_malware.sh
+    
+    # Simulating T1003.008 (Credential Dumping)
+    sudo cat /etc/shadow
+    
+    # SIEM shutdown and resource release
+    sudo /opt/splunk/bin/splunk stop
+    ```
+* **Discovery:** The automated alerting engine successfully caught both the SUID manipulation and the unauthorized credential store access. Furthermore, the `index=_audit action=edit_alerts` query verified that the eventual disabling of the lab alerts was formally tracked by the system.
 
 ---
 
-### 📸 Evidence & Artifacts
-*(Visual proof of the investigation, correlating directly to the incident timeline).*
-**Practical evidence** [View scan_logs.sh Script & Execution Screenshots](Evidence/)
+## 📊 Technical Analysis: The "Big Three" Concepts
 
- 
-| Artifact Name | Description |
-| :--- | :--- |
-| `IR_D9_01_SHA256_Hash_Generation.png` | Documentation of evidence integrity. Generated a SHA-256 fingerprint in the Linux CLI prior to analysis. |
-| `IR_D9_04_VT_Global_Detection_Summary.png` | Threat intelligence verification via VirusTotal API showing a 62/67 engine detection rate for the artifact. |
-| `IR_P3_Network_Isolation_UFW.png` | Host-based containment implemented via UFW, showing active `deny incoming/outgoing` policies. |
-| `IR_P3_Containment_Verification_Ping.png` | Proof of successful network isolation. Verified egress filter functionality via 100% packet loss on external ping. |
-| `IR_P4_Persistence_Audit_Crontab.png` | Evidence of the Eradication phase. Audited user-level scheduled tasks to ensure no backdoors existed. |
-| `IR_P5_Recovery_Firewall_Restore.png` | Final recovery phase returning the system to operational status by safely lifting the firewall lockdown. |
+| Concept / Category | Definition & Technical Focus | Implementation / Observation |
+| :--- | :--- | :--- |
+| **T1548.001: SUID/SGID Abuse** | Adversaries manipulate file permissions to execute binaries with the privileges of the file owner (often root) for persistence. | Captured via continuous monitoring of `chmod` commands containing `u+s` or `4777` arguments. |
+| **T1003.008: /etc/shadow Access** | The targeted extraction of local credential hashes for offline brute-force or dictionary cracking. | Monitored by tracking any file read operations against the `/etc/shadow` directory. |
+| **Governance: Policy vs. Standard** | **Policy:** A general mandatory rule (e.g., "All authentication events must be logged to the SIEM"). <br><br> **Standard:** A specific metric-based rule (e.g., "The SIEM must poll `auth.log` data using a Cron schedule of `*/1 * * * *`"). | Enforced by establishing the ingestion pipeline (Policy) and creating the 60-second automated alert triggers (Standard). |
 
 ---
 
-### 🧠 Daily Reflection
+## 📂 Evidence & Artifacts Gallery
 
-Today shifted my focus from finding vulnerabilities to actively managing a crisis. I learned that simply deleting a malicious file is the mark of an amateur; a professional ensures a mathematically proven Chain of Custody (Hashing), correlates findings with global intelligence, strictly contains the network before taking action, and aggressively hunts for hidden persistence mechanisms (Crontab). By executing the NIST Incident Response lifecycle manually via the command line, I now deeply understand the foundational mechanics that enterprise EDR tools (like Wazuh or CrowdStrike) automate. My focus is no longer just on "breaking things" or "finding the bug",it is on forensic containment, data integrity, and restoring business continuity.
-```
+| Artifact Name | Description | Technical Observation |
+| :--- | :--- | :--- |
+| `Day10_H2_Data_Source_Verification.png` | Splunk Data Ingestion Check | Proves the successful pipeline configuration, showing live event streaming from the `pulse-HP` host. |
+| `Day10_H4_SOC_Incident_Dashboard.png` | Triggered Alerts Console | Validates the Detection Engineering phase; shows automated alerts firing based on the programmed Cron logic. |
+| `Day10_H5_T1548_Detection_Proof.png` | SUID Manipulation Log | Raw telemetry proving the SIEM captured the exact `chmod u+s` adversary simulation. |
+| `Day10_H5_Critical_Shadow_File_Alert.png` | Credential Access Trigger | High-fidelity event log capturing the execution of `cat /etc/shadow`, indicating early-stage lateral movement prep. |
+| `Day10_H5_System_Integrity_Audit.png` | Splunk Internal Audit Trail | Shows the `_audit` index accurately tracking the manual disabling of alerts, proving environmental accountability. |
+
+---
+
+## 🛡️ Remediation & Hardening Strategy
+
+Based on today's simulated threats and detection validations, the following mitigation steps are recommended to harden the host environment:
+
+1.  **SUID Binary Auditing:** Implement automated scripts to run `find / -perm -4000 -type f 2>/dev/null` weekly. Compare the output against a known-good baseline to identify rogue SUID implementations.
+2.  **Strict File Permissions (Credential Stores):** Ensure `/etc/shadow` permissions remain strictly `640` or `000` depending on the OS architecture, owned by `root:shadow`. 
+3.  **SIEM Alert Tamper Protection:** Configure Role-Based Access Control (RBAC) within the SIEM to ensure that Tier 1 Analysts cannot disable or mute critical alerts without Manager-level approval.
+4.  **Implement 'Least Privilege' for Sudoers:** Review the `/etc/sudoers` file to ensure users are only granted specific command execution rights rather than blanket `ALL=(ALL:ALL) ALL` access, limiting the damage of compromised accounts.
+
+---
+
+## 📝 Daily Reflection
+
+**Problem:** Standard system logging natively captures a massive amount of noise, making it highly difficult to retroactively identify stealthy privilege escalation or data dumping during an active incident. 
+
+**Action:** Engineered a focused detection pipeline in Splunk, utilizing specific SPL queries to isolate T1548 and T1003 behaviors, and tied them to automated, metric-based polling standards for near real-time notification.
+
+**Result:** The pipeline successfully captured the simulated Red Team behavior. More importantly, from a forensic auditing perspective, the environment demonstrated verifiable remediation. Not only were the malicious actions detected, but the subsequent administrative actions to sanitize the lab (disabling the alerts) were tracked within the internal audit index, proving that the system maintains absolute integrity and a continuous chain of custody for all configurations.
