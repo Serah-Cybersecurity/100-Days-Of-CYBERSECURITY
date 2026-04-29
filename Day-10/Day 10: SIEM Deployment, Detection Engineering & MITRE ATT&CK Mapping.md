@@ -1,7 +1,7 @@
 ## **Day 10: SIEM Deployment, Detection Engineering & MITRE ATT&CK Mapping**
 
 ### **The Mindset Shift: From "Exploitation" to "Continuous Detection"**
-Today’s focus represented a critical transition from an offensive mindset ("How do I break in and escalate?") to a defensive, Detection Engineering methodology ("How do I ensure no lateral movement or``````````````````````````` escalation goes unnoticed?"). Moving from point-in-time penetration testing to continuous, telemetry-driven monitoring requires anticipating adversary behaviors and building automated, high-fidelity tripwires for persistence and credential dumping techniques.
+Today’s focus represented a critical transition from an offensive mindset ("How do I break in and escalate?") to a defensive, Detection Engineering methodology ("How do I ensure no lateral movement or escalation goes unnoticed?"). Moving from point-in-time penetration testing to continuous, telemetry-driven monitoring requires anticipating adversary behaviors and building automated, high-fidelity tripwires for persistence and credential dumping techniques.
 
 ---
 
